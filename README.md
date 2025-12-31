@@ -16,7 +16,7 @@ All tools return **compact JSON** for efficient LLM token usage.
 
 ## Demo
 
-<video src="alko-mcp-demo.mp4" controls width="100%"></video>
+<video src="https://github.com/user-attachments/assets/ca9535c2-b3e4-44da-b509-5f55793b9d4a" controls width="100%"></video>
 
 *Claude Desktop using Alko MCP to search products, check availability, and get recommendations.*
 
