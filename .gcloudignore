@@ -1,0 +1,56 @@
+# Cloud Build ignore file
+# This controls what gets uploaded to Cloud Build via `gcloud builds submit`
+
+# Include everything needed for Docker build
+# (Docker build then uses .dockerignore to filter further)
+
+# Dependencies (installed fresh in build)
+node_modules/
+
+# Build output (built fresh)
+dist/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Test files (not needed for production build)
+tests/
+coverage/
+playwright-report/
+test-results/
+vitest.config.ts
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Downloaded Excel files
+*.xlsx
+*.xls
+
+# IMPORTANT: Do NOT exclude these (needed for build):
+# - src/              (TypeScript source)
+# - data/seed-data.json (seed data for Firestore bootstrap - speeds up cold start)
+# - package.json      (dependencies)
+# - Dockerfile        (build instructions)
+# - tsconfig.json     (TypeScript config)
+
+# Note: data/seed-data.json is in .gitignore (not committed to git)
+# but deliberately NOT in .gcloudignore (uploaded to Cloud Build)
+# This allows fast Firestore bootstrap without syncing from Alko.fi on first request

@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Alko MCP Server
+  alko-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - MCP_TRANSPORT=http
+      - FIRESTORE_EMULATOR_HOST=firestore:8081
+      - GOOGLE_CLOUD_PROJECT=alko-mcp-dev
+    depends_on:
+      - firestore
+    volumes:
+      - ./src:/app/src:ro
+    restart: unless-stopped
+
+  # Firestore Emulator
+  firestore:
+    image: google/cloud-sdk:slim
+    command: >
+      bash -c "
+        gcloud components install cloud-firestore-emulator --quiet &&
+        gcloud emulators firestore start --host-port=0.0.0.0:8081
+      "
+    ports:
+      - "8081:8081"
+    environment:
+      - GOOGLE_CLOUD_PROJECT=alko-mcp-dev
+
+  # Firestore UI (optional, for debugging)
+  firestore-ui:
+    image: node:20-slim
+    command: npx -y firebase-tools emulators:ui --listen 0.0.0.0:4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      - firestore
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore:8081

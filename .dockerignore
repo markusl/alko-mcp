@@ -1,0 +1,45 @@
+# Dependencies (installed fresh in container)
+node_modules
+
+# Build output (built fresh in container)
+dist
+
+# Development files
+.git
+.github
+.gitignore
+.env
+.env.*
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+tests
+coverage
+*.test.ts
+vitest.config.ts
+
+# Documentation (not needed at runtime)
+*.md
+!data/*.md
+
+# Scripts (not needed at runtime)
+scripts
+
+# Note: src and tsconfig.json are needed for the build stage
+# They are only used in the builder stage and not copied to final image
+
+# Playwright cache (installed fresh in container)
+.playwright
+
+# macOS
+.DS_Store
+
+# Misc
+*.tgz
+*.tar.gz
