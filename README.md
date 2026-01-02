@@ -95,6 +95,7 @@ npm run export-seed
 
 Config file: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 
+**Local development:**
 ```json
 {
   "mcpServers": {
@@ -109,10 +110,23 @@ Config file: `~/Library/Application Support/Claude/claude_desktop_config.json` (
 }
 ```
 
+**Production (Cloud Run):**
+```json
+{
+  "mcpServers": {
+    "alko": {
+      "url": "https://YOUR-CLOUD-RUN-URL.run.app/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
 ### ChatGPT Desktop
 
 Config file: `~/.config/chatgpt/mcp.json` (macOS/Linux) or `%APPDATA%\chatgpt\mcp.json` (Windows)
 
+**Local development:**
 ```json
 {
   "servers": {
@@ -122,6 +136,18 @@ Config file: `~/.config/chatgpt/mcp.json` (macOS/Linux) or `%APPDATA%\chatgpt\mc
       "env": {
         "FIRESTORE_EMULATOR_HOST": "localhost:8081"
       }
+    }
+  }
+}
+```
+
+**Production (Cloud Run):**
+```json
+{
+  "servers": {
+    "alko": {
+      "url": "https://YOUR-CLOUD-RUN-URL.run.app/mcp",
+      "transport": "streamable-http"
     }
   }
 }
@@ -140,7 +166,7 @@ Then configure in AI Studio with the MCP endpoint URL:
 http://localhost:3000/mcp
 ```
 
-For production, deploy to Cloud Run and use the public URL.
+For production, deploy to Cloud Run with API token authentication (see below).
 
 ### Claude Code CLI
 
@@ -245,7 +271,7 @@ Add to your project's `.mcp.json`:
 
 ### Product Catalog
 - **Source**: Alko's public Excel price list
-- **URL**: `https://www.alko.fi/.../alkon-hinnasto-tekstitiedostona.xlsx`
+- **URL**: `https://www.alko.fi/INTERSHOP/static/WFS/Alko-OnlineShop-Site/-/Alko-OnlineShop/fi_FI/Alkon%20Hinnasto%20Tekstitiedostona/alkon-hinnasto-tekstitiedostona.xlsx`
 - **Products**: ~11,900
 - **Update**: Run `npm run sync-data`
 
@@ -305,20 +331,38 @@ tail -f /tmp/alko-mcp.log
 
 ## Deployment to Google Cloud Run
 
+The server can be deployed to Cloud Run with public access (no authentication) for compatibility with ChatGPT and other MCP clients.
+
 ```bash
 # Enable APIs
-gcloud services enable run.googleapis.com firestore.googleapis.com
+gcloud services enable run.googleapis.com firestore.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com
 
 # Create Firestore database
 gcloud firestore databases create --location=europe-north1
 
-# Deploy
+# Deploy using Cloud Build
+gcloud builds submit --config=cloudbuild.yaml
+
+# Or deploy directly from source
 gcloud run deploy alko-mcp \
   --source . \
   --region europe-north1 \
-  --memory 1Gi \
-  --set-env-vars="MCP_TRANSPORT=http"
+  --memory 2Gi \
+  --cpu 2 \
+  --execution-environment gen2 \
+  --set-env-vars="MCP_TRANSPORT=http" \
+  --allow-unauthenticated
 ```
+
+**Test the endpoint:**
+```bash
+curl -X POST https://alko-mcp-xxx.a.run.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for API token authentication and other options.
 
 ## Legal Disclaimer
 

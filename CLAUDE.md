@@ -243,9 +243,15 @@ Environment variables:
 - `FIRESTORE_EMULATOR_HOST` - For local development (e.g., "localhost:8081")
 - `LOG_LEVEL` - Pino log level (default: "info")
 - `MCP_TRANSPORT` - "stdio" (default) or "http"
-- `PORT` - HTTP server port (default: 3000)
+- `PORT` - HTTP server port (default: 8080)
+- `API_TOKEN` - Bearer token for HTTP authentication. If set, all requests (except `/health`) require `Authorization: Bearer <token>` header. If not set, no authentication required (local dev mode).
+
+**Auto-detected:**
+- `K_SERVICE` - Set by Cloud Run. Used to detect production environment (`config.isCloudRun`).
 
 ## Claude Desktop Configuration
+
+### Local Development (stdio transport)
 
 Config file: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
@@ -262,6 +268,23 @@ Config file: `~/Library/Application Support/Claude/claude_desktop_config.json`
   }
 }
 ```
+
+### Production (HTTP transport)
+
+For remote Cloud Run deployment (no authentication required):
+
+```json
+{
+  "mcpServers": {
+    "alko": {
+      "url": "https://YOUR-CLOUD-RUN-URL.run.app/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+**Note:** The production endpoint is public for compatibility with ChatGPT and other MCP clients that don't support custom authentication headers. See DEPLOYMENT.md for API token authentication if needed.
 
 ## Development Commands
 
@@ -317,6 +340,12 @@ View logs: `tail -f /tmp/alko-mcp.log`
     - `foodSymbolId`: Food pairing filter (e.g., `foodSymbol_Ayriaiset` for seafood)
     - `ContextCategoryUUID`: Optional catalog category scope (not required for food symbol searches)
     - Intershop docs: https://support.intershop.com/kb/index.php/Display/23T257
+
+12. **MCP Tool Annotations:** All tools include MCP spec annotations for better client behavior:
+    - `title`: Human-readable name displayed in tool lists
+    - `readOnlyHint`: True for read-only tools, false for `sync_products` which writes to Firestore
+    - `idempotentHint`: True for all tools (safe to retry)
+    - `openWorldHint`: True for tools that scrape external sites (alko.fi, vivino.com), false for local-only tools
 
 ## Testing
 

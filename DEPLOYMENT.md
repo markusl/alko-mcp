@@ -343,9 +343,78 @@ gcloud iam workload-identity-pools providers describe github-provider \
 
 ## Step 4: API Protection Options
 
-The MCP server exposes sensitive data and should be protected. Choose one of these options:
+The MCP server should be protected in production. Choose one of these options:
 
-### Option A: IAM Authentication (Recommended for Claude Code)
+### Option A: API Token Authentication (Recommended)
+
+The server has built-in API token authentication. When the `API_TOKEN` environment variable is set, all requests (except `/health`) require a valid `Authorization: Bearer <token>` header.
+
+**How it works:**
+- **Local development:** No `API_TOKEN` set = no authentication required
+- **Cloud Run:** `API_TOKEN` set via Secret Manager = token required
+- **Detection:** Server uses `K_SERVICE` environment variable (set by Cloud Run) to detect production environment
+
+**Setup:**
+
+```bash
+# 1. Enable Secret Manager API
+gcloud services enable secretmanager.googleapis.com
+
+# 2. Generate and store API token
+API_TOKEN=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+echo -n "$API_TOKEN" | gcloud secrets create alko-mcp-api-token \
+  --data-file=- --replication-policy=automatic
+echo "Your API token: $API_TOKEN"
+
+# 3. Grant Cloud Run service account access to the secret
+gcloud secrets add-iam-policy-binding alko-mcp-api-token \
+  --member="serviceAccount:$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# 4. Deploy with secret binding and allow unauthenticated (app handles auth)
+gcloud run deploy alko-mcp \
+  --region=europe-north1 \
+  --set-secrets="API_TOKEN=alko-mcp-api-token:latest" \
+  --allow-unauthenticated
+
+# 5. Allow public access (API token handles authentication)
+gcloud run services add-iam-policy-binding alko-mcp \
+  --region=europe-north1 \
+  --member="allUsers" \
+  --role="roles/run.invoker"
+```
+
+**Client usage:**
+
+```bash
+# Get your token
+gcloud secrets versions access latest --secret=alko-mcp-api-token
+
+# Test the endpoint
+curl -X POST https://alko-mcp-xxx.a.run.app/mcp \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+**Claude Desktop configuration with API token:**
+
+```json
+{
+  "mcpServers": {
+    "alko": {
+      "url": "https://alko-mcp-xxx.a.run.app/mcp",
+      "transport": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+### Option B: IAM Authentication
 
 The `--no-allow-unauthenticated` flag requires IAM authentication:
 
@@ -402,25 +471,16 @@ gcloud iap web add-iam-policy-binding \
   --role="roles/iap.httpsResourceAccessor"
 ```
 
-### Option C: API Key + Custom Middleware
+### Option C: Legacy API Key Header (Deprecated)
 
-For simpler authentication, add API key validation to the server:
-
-```typescript
-// Add to server.ts before MCP routes
-if (req.headers['x-api-key'] !== process.env.API_KEY) {
-  res.writeHead(401);
-  res.end('Unauthorized');
-  return;
-}
-```
-
-Deploy with the API key:
+The server previously supported `X-API-Key` header. This has been replaced by the standard `Authorization: Bearer <token>` header (Option A). The new implementation supports both formats:
 
 ```bash
-gcloud run deploy alko-mcp \
-  --set-env-vars="API_KEY=your-secret-key" \
-  --allow-unauthenticated  # API key handles auth
+# Preferred: Bearer token
+curl -H "Authorization: Bearer YOUR_TOKEN" ...
+
+# Also supported: Direct token (without "Bearer" prefix)
+curl -H "Authorization: YOUR_TOKEN" ...
 ```
 
 ### Option D: VPC Service Controls (Enterprise)
@@ -609,9 +669,16 @@ Or use direct URL with token:
 | `MCP_TRANSPORT` | No | stdio | Set to `http` for Cloud Run |
 | `PORT` | No | 8080 | HTTP server port (Cloud Run sets this) |
 | `NODE_ENV` | No | development | Set to `production` for Cloud Run |
-| `API_KEY` | No | - | Optional API key for authentication |
+| `API_TOKEN` | No | - | API token for Bearer authentication. If set, all requests (except /health) require `Authorization: Bearer <token>` header |
 | `SCRAPE_RATE_LIMIT_MS` | No | 2000 | Rate limit for web scraping (ms) |
 | `SCRAPE_CACHE_TTL_MS` | No | 3600000 | Scrape cache TTL (1 hour) |
+
+**Auto-detected variables (set by Cloud Run):**
+| Variable | Description |
+|----------|-------------|
+| `K_SERVICE` | Cloud Run service name. Used to detect production environment |
+| `K_REVISION` | Cloud Run revision name |
+| `K_CONFIGURATION` | Cloud Run configuration name |
 
 ## Monitoring & Logging
 

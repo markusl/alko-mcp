@@ -51,7 +51,7 @@ steps:
       # With 2Gi/2CPU, 5-10 concurrent requests is reasonable
       - '--concurrency'
       - '10'
-      - '--no-allow-unauthenticated'
+      - '--allow-unauthenticated'
       - '--set-env-vars'
       - 'NODE_ENV=production,MCP_TRANSPORT=http,GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
 

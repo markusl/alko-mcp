@@ -7,6 +7,9 @@ const defaultProject = isEmulator ? 'alko-mcp-dev' : null;
 /**
  * Application configuration loaded from environment variables
  */
+// Cloud Run sets K_SERVICE with the service name
+const isCloudRun = !!process.env.K_SERVICE;
+
 export const config: AppConfig = {
   port: parseInt(process.env.PORT || '8080', 10),
   nodeEnv: (process.env.NODE_ENV || 'development') as AppConfig['nodeEnv'],
@@ -17,6 +20,8 @@ export const config: AppConfig = {
   scrapeRateLimitMs: parseInt(process.env.SCRAPE_RATE_LIMIT_MS || '2000', 10),
   scrapeCacheTtlMs: parseInt(process.env.SCRAPE_CACHE_TTL_MS || '3600000', 10),
   syncCronSchedule: process.env.SYNC_CRON_SCHEDULE || '0 2 * * *',
+  apiToken: process.env.API_TOKEN,
+  isCloudRun,
 };
 
 /**

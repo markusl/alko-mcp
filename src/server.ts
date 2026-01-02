@@ -63,9 +63,16 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'search_products',
     {
+      title: 'Search Alko Products',
       description:
-        'Search the Alko product catalog. Returns JSON array of products with id, name, price, type, country, alcohol%, etc.',
+        'Search Finnish Alko alcohol catalog (~12,000 products). Filter by name, type, country, price, alcohol%. Returns: id, name, price, type, country, alcohol%, producer.',
       inputSchema: searchProductsSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async (params) => {
       const result = await searchProducts(params as never);
@@ -79,9 +86,16 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'get_product',
     {
+      title: 'Get Product by ID',
       description:
-        'Get product details by ID. Set includeEnrichedData=true for taste profile, usage tips, serving suggestions, and food pairings (slower, scrapes web).',
+        'Retrieve detailed product info by Alko product ID. Optional: includeEnrichedData=true adds taste profile, food pairings, serving tips (slower, scrapes alko.fi).',
       inputSchema: getProductSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (params) => {
       const result = await getProduct(params as never);
@@ -95,8 +109,16 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'get_availability',
     {
-      description: 'Check which Alko stores have a product in stock. Returns store names and quantities.',
+      title: 'Check Product Stock',
+      description:
+        'Check real-time product availability at Alko stores. Returns store names with stock quantities. Filter by city. Scrapes alko.fi for live data.',
       inputSchema: getAvailabilitySchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (params) => {
       const result = await getAvailability(params as never);
@@ -110,8 +132,16 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'list_stores',
     {
-      description: 'List Alko stores. Filter by city. Returns store id, name, address, city.',
+      title: 'List Alko Stores',
+      description:
+        'List all ~360 Alko stores in Finland. Filter by city name. Returns: store id, name, address, city, postal code.',
       inputSchema: listStoresSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async (params) => {
       const result = await listStores(params as never);
@@ -125,9 +155,16 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'get_store_hours',
     {
+      title: 'Get Store Opening Hours',
       description:
-        'Get store opening hours. Filter by storeName, city, or openNow=true. Returns hours for today/tomorrow and isOpenNow status.',
+        'Get Alko store opening hours for today and tomorrow. Filter by store name, city, or openNow=true for currently open stores. Auto-refreshes stale data.',
       inputSchema: getStoreHoursSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (params) => {
       const result = await getStoreHours(params as never);
@@ -141,8 +178,16 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'get_recommendations',
     {
-      description: 'Get product recommendations based on occasion, food pairing, flavor profile, or price range.',
+      title: 'Get Wine/Drink Recommendations',
+      description:
+        'Get personalized product recommendations. Specify occasion, food pairing (uses Alko official pairing data), price range, or preferences (organic, vegan). Supports 33 food categories.',
       inputSchema: getRecommendationsSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (params) => {
       const result = await getRecommendations(params as never);
@@ -156,9 +201,16 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'get_vivino_rating',
     {
+      title: 'Get Vivino Wine Rating',
       description:
-        'Get Vivino wine rating by searching for wine name or using direct Vivino URL. Returns star rating (1-5), number of ratings, and wine info.',
+        'Look up wine ratings from Vivino.com. Search by wine name/winery or provide direct URL. Returns: average rating (1-5 stars), rating count, wine details. Results are cached.',
       inputSchema: getVivinoRatingSchema._def.schema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (params) => {
       const result = await getVivinoRating(params as never);
@@ -172,7 +224,15 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'sync_products',
     {
-      description: 'Sync product database with latest Alko price list. Takes a few minutes.',
+      title: 'Sync Product Database (Admin)',
+      description:
+        'Admin: Download latest Alko price list and update product database. Takes 2-5 minutes. Updates ~12,000 products. Use get_sync_status to check progress.',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async () => {
       const syncService = getDataSyncService();
@@ -187,7 +247,15 @@ function createMcpServer(): McpServer {
   server.registerTool(
     'get_sync_status',
     {
-      description: 'Get sync status and product count.',
+      title: 'Get Database Status',
+      description:
+        'Check database health: product count, last sync timestamp, sync status. Use to verify data freshness before searches.',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async () => {
       const syncService = getDataSyncService();
@@ -214,16 +282,48 @@ async function startStdioServer(server: McpServer): Promise<void> {
 }
 
 /**
+ * Validate API token from Authorization header
+ * Returns true if valid, false if invalid
+ * In local dev (no API_TOKEN set), always returns true
+ */
+function validateApiToken(req: import('http').IncomingMessage): boolean {
+  // No token configured = no auth required (local dev)
+  if (!config.apiToken) {
+    return true;
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return false;
+  }
+
+  // Support "Bearer <token>" format
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : authHeader;
+
+  return token === config.apiToken;
+}
+
+/**
  * Start the server with HTTP transport
  */
 async function startHttpServer(server: McpServer): Promise<void> {
   logger.info(`Starting MCP server with HTTP transport on port ${config.port}`);
+  logger.info(`API token authentication: ${config.apiToken ? 'enabled' : 'disabled (local dev)'}`);
 
   const httpServer = createServer(async (req, res) => {
-    // Health check endpoint
+    // Health check endpoint (no auth required)
     if (req.url === '/health' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'healthy' }));
+      return;
+    }
+
+    // Validate API token for all other endpoints
+    if (!validateApiToken(req)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized: Invalid or missing API token' }));
       return;
     }
 

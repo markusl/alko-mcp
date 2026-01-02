@@ -35,4 +35,8 @@ export interface AppConfig {
   scrapeRateLimitMs: number;
   scrapeCacheTtlMs: number;
   syncCronSchedule: string;
+  /** API token for HTTP authentication. Required in Cloud Run, optional locally. */
+  apiToken: string | undefined;
+  /** True when running in Cloud Run (K_SERVICE is set) */
+  isCloudRun: boolean;
 }
